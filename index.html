@@ -174,9 +174,9 @@ const MEDIA = {
   VIDEO_06_TOUR_COMUNIDADE: 'https://stream.cakto.com.br/1adae759-f405-4e28-81a8-a1559a4d9293/1080p/video.m3u8',
   VIDEO_08_FECHAMENTO: 'https://stream.cakto.com.br/ccd2aa22-b7b3-44e1-853f-f12cb1768a44/1080p/video.m3u8',
   AUDIO_01: 'audio_01.m4a',
-  AUDIO_INTRO_OPERACAO: 'https://www.image2url.com/r2/default/audio/1793864981176-adc4b957-2b4e-49a4-9476-bbc8e451d92c.m4a',
-  AUDIO_POS_RESULTADO: 'https://www.image2url.com/r2/default/audio/1793867691029-b6c18f2d-cbe0-4853-a28e-3a3bfa041c50.m4a',
-  AUDIO_POS_RESULTADO_2: 'https://www.image2url.com/r2/default/audio/1793867789628-62a32023-c56e-458b-888b-6b00b0b3f3db.m4a',
+  AUDIO_INTRO_OPERACAO: 'audio_intro_operacao.m4a',
+  AUDIO_POS_RESULTADO: 'audio_pos_resultado_1.m4a',
+  AUDIO_POS_RESULTADO_2: 'audio_pos_resultado_2.m4a',
   AUDIO_EXPLICACAO_FORMATOS: 'audio_explicacao_formatos.m4a',
   AUDIO_02: 'audio_02.m4a',
   AUDIO_03: 'audio_03.m4a',
@@ -420,7 +420,11 @@ function slot(d,label,fala){
 }
 function voiceNote(src){
   const card=bubble('voice-note');
-  const audio=document.createElement('audio');audio.src=src;audio.preload='metadata';
+  const audio=document.createElement('audio');
+  audio.preload='auto';
+  audio.setAttribute('playsinline','');
+  audio.setAttribute('webkit-playsinline','');
+  audio.src=src;
   const play=document.createElement('button');play.type='button';play.className='voice-play';play.textContent='▶';play.setAttribute('aria-label','Reproduzir áudio');
   const body=document.createElement('div');body.className='voice-body';const seek=document.createElement('input');seek.type='range';seek.min='0';seek.max='100';seek.step='.1';seek.value='0';seek.className='voice-seek';seek.setAttribute('aria-label','Posição do áudio');
   const meta=document.createElement('div');meta.className='voice-meta';const time=document.createElement('span');time.textContent='0:00';const label=document.createElement('span');label.textContent='Murilo Vaz';meta.append(time,label);body.append(seek,meta);
@@ -429,7 +433,29 @@ function voiceNote(src){
   const status=document.createElement('span');status.className='voice-error';status.hidden=true;status.setAttribute('role','status');
   const fmt=t=>{if(!Number.isFinite(t))return '0:00';return Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0')};
   function sync(){play.textContent=audio.paused?'▶':'❚❚';play.setAttribute('aria-label',audio.paused?'Reproduzir áudio':'Pausar áudio')}
-  play.onclick=async()=>{if(audio.paused){box.querySelectorAll('audio,video').forEach(o=>{if(o!==audio)o.pause()});try{await audio.play();status.hidden=true}catch(e){status.textContent='Não foi possível reproduzir. Toque para tentar novamente.';status.hidden=false}}else audio.pause();sync()};
+  play.onclick=async()=>{
+    if(audio.paused){
+      box.querySelectorAll('audio,video').forEach(o=>{if(o!==audio)o.pause()});
+      try{
+        status.hidden=true;
+        const p = audio.play();
+        if(p !== undefined) await p;
+      }catch(e){
+        // Em caso de bloqueio temporário do navegador, recarrega o stream e tenta novamente
+        try{
+          audio.load();
+          await audio.play();
+          status.hidden=true;
+        }catch(err){
+          status.textContent='Toque novamente para ouvir';
+          status.hidden=false;
+        }
+      }
+    }else{
+      audio.pause();
+    }
+    sync();
+  };
   const rates=[1,1.5,2];speed.onclick=()=>{audio.playbackRate=rates[(rates.indexOf(audio.playbackRate)+1)%rates.length]};
   audio.addEventListener('ratechange',()=>{speed.textContent=String(audio.playbackRate).replace('.',',')+'×'});
   audio.addEventListener('loadedmetadata',()=>{time.textContent=fmt(audio.duration)});
