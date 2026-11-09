@@ -652,6 +652,9 @@ function resolveMsg(m){
 // - Aguarda o usuário escutar o áudio ou assistir ao vídeo do início até o fim (em qualquer velocidade)
 // - Ao terminar, aguarda ~1.3s de pausa natural antes de iniciar o envio da próxima mensagem
 function waitForMediaSmart(card, msg, t){
+  const mediaKey = msg.audio || msg.video;
+  const nominalDur = (mediaKey && MEDIA_DURATIONS[mediaKey]) ? MEDIA_DURATIONS[mediaKey] : 15;
+
   return new Promise(resolve => {
     let resolved = false;
     let checkTimer = null;
@@ -687,15 +690,25 @@ function waitForMediaSmart(card, msg, t){
       return;
     }
 
+    // Fallback de segurança: caso o usuário assista até o fim sem dar play novamente ou o evento ended demore
+    const maxSafetyTimeout = Math.max((nominalDur + 10) * 1000, 15000);
+    const safetyTimer = setTimeout(() => {
+      if(!resolved && mediaEl.currentTime > 0){
+        finish();
+      }
+    }, maxSafetyTimeout);
+
     function checkEnded(){
       if(resolved) return;
       if(t !== token){
+        clearTimeout(safetyTimer);
         finish();
         return;
       }
-      const dur = Number.isFinite(mediaEl.duration) && mediaEl.duration > 0 ? mediaEl.duration : 0;
+      const dur = Number.isFinite(mediaEl.duration) && mediaEl.duration > 0 ? mediaEl.duration : nominalDur;
       const curTime = mediaEl.currentTime || 0;
-      if(mediaEl.ended || (dur > 0 && curTime >= dur - 0.15)){
+      if(mediaEl.ended || (dur > 0 && curTime >= dur - 0.25)){
+        clearTimeout(safetyTimer);
         cleanup();
         // Espera ~1.3s após o fim real do áudio/vídeo (seja em 1x, 1.5x ou 2x) para ficar 100% natural
         setTimeout(finish, 1300);
@@ -707,6 +720,7 @@ function waitForMediaSmart(card, msg, t){
       mediaEl.addEventListener(ev, checkEnded);
     }
     mediaEl.addEventListener('error', () => {
+      clearTimeout(safetyTimer);
       if(!resolved) setTimeout(finish, 3000);
     }, { once: true });
   });
