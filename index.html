@@ -484,7 +484,17 @@ function openLightbox(src){
 function videoCard(src,wide,legenda,isFirstVideo,allow2x){
   const d=bubble(wide?'video-wide':('video-card'+(legenda?' with-caption':'')));
   const wrap=document.createElement('div');wrap.className='custom-video-box';
-  const v=document.createElement('video');v.controls=false;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');v.preload='metadata';
+  const v=document.createElement('video');
+  v.controls=false;
+  v.playsInline=true;
+  v.setAttribute('playsinline','');
+  v.setAttribute('webkit-playsinline','');
+  v.setAttribute('x5-playsinline','');
+  v.setAttribute('x-webkit-airplay','allow');
+  v.preload='metadata';
+  // Previne que iOS ou Android forcem fullscreen nativo
+  if(v.disablePictureInPicture !== undefined) v.disablePictureInPicture = true;
+  v.addEventListener('webkitbeginfullscreen',(e)=>{e.preventDefault();if(v.webkitExitFullscreen)v.webkitExitFullscreen()});
   if(src.includes('.m3u8')){
     if(v.canPlayType('application/vnd.apple.mpegurl')){
       v.src=src;
